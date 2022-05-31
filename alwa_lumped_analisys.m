@@ -2,7 +2,7 @@
 %The model proposed is of cilindrical waveguide with axisymmetric open channels
 %Suplemental material for:
 %"Educational Open Source Kit for the Evaluation of Acoustic Leaky Wave Antennas with Metamaterials"
-%Eduardo Romero-Vivas, Javier Romero-Vivas, Omar Bustamante, Braulio Leon-Lopez
+%Eduardo Romero-Vivas, Javier Romero-Vivas, Omar A. Bustamante, Braulio Leon-Lopez
 %JASA Eduaction in Acoustics
 %%Version 1.1, December 2021, Octave/Matlab
 %
@@ -11,16 +11,16 @@
 %res - number of samples between frequencies interval
 %
 %rho - air density
-%c - speed of sound
+%c - free-space sound velocity
 %
 %ALWA parameters
 %a - waveguide radius
 %b - shunt width
-%L - shunt length
+%l - shunt length
 %h - membrane thickness
 %N - unit cell number
 %d - unit cell length
-%l - total ALWA length
+%L - total ALWA length
 
 close all
 clear all
@@ -34,61 +34,42 @@ f_th_list = linspace(f_beg,f_end,res);
 
 %%%%%%%%%%%%%%%%%%%%%%% Characteristics of the medium
 
-rho    = 0.9402;                   %% air density STP reference - La Paz BCS, Mexico
-c      = 342.4;                    %% speed of sound
+rho    = 0.9402;                   % air density STP reference - La Paz BCS, Mexico
+c      = 342.4;                    % speed of sound
 
-%%%%%%%%%%%%%%%%%%%%%%% LWA parameters
+%%%%%%%%%%%%%%%%%%%%%%% ALWA parameters
+
+h        = 0.000067;        % membrane thickness
+E        = 3e9;             %
+rho_m  = 1370;            % membrane density
+v_m    = 0.33^2;
 
 a      = 0.0039;          %% waveguide radius
 b      = 0.0004;          %% shunt width
-L      = 0.0198;          %% shunt length
-h      = 0.000067;        %% membrane thickness
+l      = 0.0198;          %% shunt length
 
 S_a    = pi * (a^2);         %% waveguide transversal area
 
 N = 20;           %% unit cell num
 d = 0.0124;       %% unit cell length
-l = N * d;        %% total ALWA length
+L = N * d;        %% total ALWA length
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Elements of the impedance Z_th
 
-mass_tl = (rho/S_a) * (d-h);          % mass of the waveguide section
-mass_m  = 1.8830 * ((1370*h)/(pi * a^2));              % mass of the membrane
-c_m     = (pi * a^6 ) / (196.51 * ( (3e9 * h^3)/(12*(1-0.33^2) ) ) );       % compliance of the membrane
+mass_wg = (rho/S_a) * (d-h);                              % mass of the waveguide section
+mass_mem  = 1.8830 * ((rho_m*h)/(pi * a^2));              % mass of the membrane
+c_mem     = (pi * a^6 ) / (196.51 * ( (E * h^3)/(12*(1-v_m) ) ) );       % compliance of the membrane
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Elements of the admittance Y_th
 
-c_tl       = (S_a/(rho * c^2)) * (d-h);       % compliance of the waveguide section
+c_wg       = (S_a/(rho * c^2)) * (d-h);       % compliance of the waveguide section
 
-f_zero         = 1 /(2*pi * sqrt( (mass_tl + mass_m) * c_m ) )   % resonance frequency of Z_th
+f_zero          = 1 /(2*pi * sqrt( (mass_wg + mass_mem) * c_mem ) );   % resonance frequency of Z_th
 
-mass_slit  = (rho/(2*pi*b)) * log(1 + L/a);            % shunt mass of the slit
-c_slit     = ( 1 / ( 4 * pi^2 * (f_zero)^2 * mass_slit) ) - c_tl;  % shunt compliance of the slit
-
-
-%%%%%%%%%%%%%%%%%%%%%%% Cutoff frequencies
-
-w_R        = 1 /sqrt( (mass_tl + mass_m) * (c_slit + c_tl) );
-w_cut_R    = 2 * w_R;
-f_cut_R    = w_cut_R / (2*pi);
-
-w_L        = 1 / sqrt( mass_slit * c_m );
-w_cut_L    = w_L / 2;
-f_cut_L    = w_cut_L / (2*pi);
-
-w_shunt    = 1 /sqrt( mass_slit * (c_slit + c_tl) );  % resonance frequency of Y_th
-f_shunt    = w_shunt / (2*pi);
-
-w_series   = 1 /sqrt( (mass_tl + mass_m) * c_m );
-f_series   = w_series / (2*pi);
-
-f_L        = ( w_L/(2*pi) );
-f_R        = ( w_R/(2*pi) );
-
-fcL        = f_R * abs( 1 - (sqrt( 1 + ( f_L / f_R ) )) );
-fcR        = f_R   *  ( 1 + (sqrt( 1 + ( f_L / f_R ) )) );
+mass_shunt  = (rho/(2*pi*b)) * log(1 + l/a);            % shunt mass of the shunt
+c_shunt     = ( 1 / ( 4 * pi^2 * (f_zero)^2 * mass_shunt) ) - c_wg;  % shunt compliance of the shunt
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Transfer function
@@ -100,10 +81,10 @@ for num=1:length(f_th_list)
 
 
     %%%%%%%%%%%%%%%%%%%%%%% Series impedance Z_th
-    Z_th = 1i * ( (omega*(mass_tl + mass_m)) - (1/(omega*c_m)));
+    Z_th = 1i * ( (omega*(mass_wg + mass_mem)) - (1/(omega*c_mem)));
 
     %%%%%%%%%%%%%%%%%%%%%%% Shunt admittance Y_th
-    Y_th = 1i * ( (omega*(c_slit + c_tl)) - (1/(omega*mass_slit))  );
+    Y_th = 1i * ( (omega*(c_shunt + c_wg)) - (1/(omega*mass_shunt))  );
 
 
     %%%%%%%%%%%%%%%%%%%%%%% ABCD matrix
@@ -130,8 +111,7 @@ for num=1:length(f_th_list)
 
 
     %%%%%%%%%%%%%%%%%%%%%%% Scattering parameters
-    bulk_m = rho * c^2;        % bulk modulus
-    Zc     = sqrt(mass_tl/(c_slit + c_tl));     % impedance
+    Zc     = sqrt(mass_wg/(c_shunt + c_wg));     % impedance
 
     S_11   = (A_N + (B_N/Zc) - (C_N*Zc) - D_N ) / (A_N + (B_N/Zc) + (C_N*Zc) + D_N );
     S_21   = 2 / (A_N + (B_N/Zc) + (C_N*Zc) + D_N );
@@ -165,7 +145,6 @@ end
 
 
 
-
 %%%%%%%%%%%%%%%%%%%%%%%
 for ps21=1:length(S_21_list)
   phi_S21_list(ps21)=angle(S_21_list(ps21));
@@ -181,8 +160,8 @@ phi_S21_rh=unwrap(phi_S21_list(offset:end));
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Beta through scattering parameters
-phi_S21_LH = -phi_S21_lh/l;
-phi_S21_RH = -phi_S21_rh/l;
+phi_S21_LH = -phi_S21_lh/L;
+phi_S21_RH = -phi_S21_rh/L;
 
 %%%%%%%%%%%%%%%%%%%%%%% Wavenumber k = omega/c
 for num=1:length(f_th_list)
@@ -195,6 +174,13 @@ k_R = k_list(offset+1:end);
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Cutoff frequencies
+
+f_L        = 1 / (2*pi*sqrt( mass_shunt * c_mem ));                       % LH resonance frequency
+f_R        = 1 /(2*pi*sqrt( (mass_wg + mass_mem) * (c_shunt + c_wg) ));   % RH resonance frequency
+
+fcL        = f_R * abs( 1 - (sqrt( 1 + ( f_L / f_R ) )) );     % LH cut off frequency
+fcR        = f_R   *  ( 1 + (sqrt( 1 + ( f_L / f_R ) )) );     % RH cut off frequency
+
 fl_x = [fcL fcL];
 fl_y = [-4 4];
 
@@ -207,8 +193,8 @@ f1_idx = find (f1_list);
 f2_list = abs(phi_S21_RH(2:end)-k_R) < 1;
 f2_idx = find (f2_list);
 
-f1   = f_th_list(f1_idx(1))
-f2   = f_th_list(offset + f2_idx(1))
+f1   = f_th_list(f1_idx(1));
+f2   = f_th_list(offset + f2_idx(1));
 
 f1_x = [f1 f1];
 f1_y = [-4 4];
@@ -226,7 +212,7 @@ figure
 %%%%AQUI
 plot(f_th_list, beta_d_ABCD, 'color','blue', 'linewidth', 2)
 xlabel ('Frequency [Hz]');
-ylabel ('\Delta \phi_{S21} = \beta * d [rad]');
+ylabel ('\beta * d [rad]');
 xlim([1800 5000]);
 ylim([-3.2 3.2])
 legend('location', 'eastoutside');
@@ -259,7 +245,7 @@ text(f2 + 25, 2.5, 'f_2', 'fontsize', 15)
 plot(f_zero_x, f_zero_y, 'color','k','Marker','.', 'linewidth', 0.1)
 text(f_zero + 25, 2.5, 'f_0', 'fontsize', 15)
 set( gca, 'fontsize', 13 );
-legend('CRLH', 'k*d')
+legend('CRLH', '�k*d')
 
 hold off
 
@@ -267,7 +253,7 @@ hold off
 
 k_full     = [-k_list(1:offset), k_list(offset + 1:end)];
 for it=1:length(k_full)
-  theta_list(it) = (asin(beta_ABCD_CRLH(it)/k_full(it)) * 180/pi );
+  theta_list(it) = asin(beta_ABCD_CRLH(it)/k_full(it)) * 180/pi;
 end
 
 
@@ -301,13 +287,22 @@ for k=1:length(k_list)
 end
 
 for delta = 1:length(theta_list)
-  delta_theta(delta) = [1/( ( l / lambda_list(delta) )  * cos(theta_list(delta)*pi/180) )];
+  delta_theta(delta) = [1/( ( L / lambda_list(delta) )  * cos(theta_list(delta)* pi/180))];
+ % delta_theta(delta) = [1/( (  / lambda_list(delta) )  * (asin(beta_ABCD_CRLH(delta)/k_full(delta)))  )];
+
 end
 
-delta_theta_deg = delta_theta * 180/pi;
+delta_theta_deg = (delta_theta  * 180/pi);
 hpbw = delta_theta_deg/2;
 
-%plot(f_th_list(1:offset), -theta_list(1:offset) + hpbw(1:offset), 'color','black', ';HPBW;');
+for i = 1:length(theta_list)
+  dr(i) = [(1.02*lambda_list(i))/ L ];
+end
+
+dr_deg = (dr  * 180/pi);
+
+
+%plot(f_th_list(1:offset), -theta_list(1:offset) - hpbw(1:offset), 'color','black', ';HPBW;');
 %AQUI
 plot(f_th_list(1:offset), -theta_list(1:offset) + hpbw(1:offset), 'color','black');
 plot(f_th_list(1:offset), -theta_list(1:offset) - hpbw(1:offset), 'color','black');
@@ -321,3 +316,12 @@ grid on
 set( gca, 'fontsize', 13 );
 legStr = { '\theta LH', '\theta RH', 'Exp:-60ª', 'Exp:-30ª', 'Exp:0ª',  'Exp:30ª', 'Exp:60ª', 'HPBW' };
 legend( legStr );
+
+
+%%%%%%%%%%%%%%%%%%%% Print
+
+fprintf('LH cut off frequency fcL = %d Hz\n', int16(fcL))
+fprintf('Backfire cut off frequency f1 = %d Hz\n', int16(f1))
+fprintf('Transition frequency f_zero = %d Hz\n', int16(f_zero))
+fprintf('Endfire cut off frequency f2 = %d Hz\n', int16(f2))
+fprintf('RH cut off frequency fcR = %d Hz\n', int16(fcR))
