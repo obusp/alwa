@@ -4,14 +4,9 @@
 %"Educational Open Source Kit for the Evaluation of Acoustic Leaky Wave Antennas with Metamaterials"
 %Eduardo Romero-Vivas, Javier Romero-Vivas, Omar A. Bustamante, Braulio Leon-Lopez
 %JASA Eduaction in Acoustics
-%%Version 1.1, December 2021, Octave/Matlab
+%%Version 1.2, May 2021, Octave/Matlab
 %
-%f_beg - first frequency of study
-%f_end - last frequency of study
-%res - number of samples between frequencies interval
 %
-%rho - air density
-%c - free-space sound velocity
 %
 %ALWA parameters
 %a - waveguide radius
@@ -26,39 +21,39 @@ close all
 clear all
 
 %%%%%%%%%%%%%%%%%%%%%%% Frequencies of study
-f_beg = 1700;
-f_end = 5000;
-res   = 1000;
+f_beg = 1700;       %first frequency of study
+f_end = 5000;       %last frequency of study
+res   = 1000;       %number of samples between frequencies interval
 
 f_th_list = linspace(f_beg,f_end,res);
 
 %%%%%%%%%%%%%%%%%%%%%%% Characteristics of the medium
 
 rho    = 0.9402;                   % air density STP reference - La Paz BCS, Mexico
-c      = 342.4;                    % speed of sound
+c      = 342.4;                    % free-space sound velocity
 
 %%%%%%%%%%%%%%%%%%%%%%% ALWA parameters
 
 h        = 0.000067;        % membrane thickness
-E        = 3e9;             %
-rho_m  = 1370;            % membrane density
-v_m    = 0.33^2;
+E        = 3e9;             % membrane Young's modulus
+rho_m  = 1370;              % membrane density
+v_m    = 0.33^2;            % membrane Poisson's ratio
 
-a      = 0.0039;          %% waveguide radius
-b      = 0.0004;          %% shunt width
-l      = 0.0198;          %% shunt length
+a      = 0.0039;          % waveguide radius
+b      = 0.0004;          % shunt width
+l      = 0.0198;          % shunt length
 
-S_a    = pi * (a^2);         %% waveguide transversal area
+S_a    = pi * (a^2);      % waveguide transversal area
 
-N = 20;           %% unit cell num
-d = 0.0124;       %% unit cell length
-L = N * d;        %% total ALWA length
+N = 20;           % unit cell num
+d = 0.0124;       % unit cell length
+L = N * d;        % total ALWA length
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Elements of the impedance Z_th
 
-mass_wg = (rho/S_a) * (d-h);                              % mass of the waveguide section
-mass_mem  = 1.8830 * ((rho_m*h)/(pi * a^2));              % mass of the membrane
+mass_wg = (rho/S_a) * (d-h);                                % mass of the waveguide section
+mass_mem  = 1.8830 * ((rho_m*h)/(pi * a^2));                % mass of the membrane
 c_mem     = (pi * a^6 ) / (196.51 * ( (E * h^3)/(12*(1-v_m) ) ) );       % compliance of the membrane
 
 
@@ -227,11 +222,11 @@ plot(f_th_list, -k_d_list, 'color','k', 'linewidth', 0.5);
 
 %plot(fl_x, fl_y, 'color','k', '--', 'linewidth', 0.1)
 plot(fl_x, fl_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
-text(fcL + 25, 2.5, 'fcL', 'fontsize', 15)
+text(fcL + 25, 2.5, 'f_{cL}', 'fontsize', 15)
 
 %plot(fr_x, fr_y, 'color','k', '--', 'linewidth', 0.1)
 plot(fr_x, fr_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
-text(fcR + 25, 2.5, 'fcR', 'fontsize', 15)
+text(fcR + 25, 2.5, 'f_{cR}', 'fontsize', 15)
 
 %plot(f1_x, f1_y, 'color','k', '--', 'linewidth', 0.1)
 plot(f1_x, f1_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
@@ -245,15 +240,15 @@ text(f2 + 25, 2.5, 'f_2', 'fontsize', 15)
 plot(f_zero_x, f_zero_y, 'color','k','Marker','.', 'linewidth', 0.1)
 text(f_zero + 25, 2.5, 'f_0', 'fontsize', 15)
 set( gca, 'fontsize', 13 );
-legend('CRLH', '�k*d')
+legend('CRLH', '\pm k*d')
 
 hold off
 
-%%%%%%%%%%%%%%%%%%%%%%% Theta
+%%%%%%%%%%%%%%%%%%%%%% Theta
 
 k_full     = [-k_list(1:offset), k_list(offset + 1:end)];
 for it=1:length(k_full)
-  theta_list(it) = asin(beta_ABCD_CRLH(it)/k_full(it)) * 180/pi;
+  theta_list(it) = real(asin(beta_ABCD_CRLH(it)/k_full(it)) * 180/pi);
 end
 
 
@@ -314,8 +309,9 @@ legend('location', 'northwest');
 set( legend, 'fontsize', 13 );
 grid on
 set( gca, 'fontsize', 13 );
-legStr = { '\theta LH', '\theta RH', 'Exp:-60ª', 'Exp:-30ª', 'Exp:0ª',  'Exp:30ª', 'Exp:60ª', 'HPBW' };
+legStr = { '\theta LH', '\theta RH', 'Exp:-60^{\circ}', 'Exp:-30^{\circ}', 'Exp:0^{\circ}',  'Exp:30^{\circ}', 'Exp:60^{\circ}', 'HPBW' };
 legend( legStr );
+legend('location', 'eastoutside');
 
 
 %%%%%%%%%%%%%%%%%%%% Print
