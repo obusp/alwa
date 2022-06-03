@@ -35,9 +35,9 @@ c      = 342.4;                    % free-space sound velocity
 %%%%%%%%%%%%%%%%%%%%%%% ALWA parameters
 
 h        = 0.000067;        % membrane thickness
-E        = 3e9;             % membrane Young's modulus
-rho_m  = 1370;              % membrane density
-v_m    = 0.33^2;            % membrane Poisson's ratio
+E        = 3.6e9;             % membrane Young's modulus
+rho_m    = 1370;            % membrane density
+v_m      = 0.33^2;          % membrane Poisson's ratio
 
 a      = 0.0039;          % waveguide radius
 b      = 0.0004;          % shunt width
@@ -83,7 +83,7 @@ for num=1:length(f_th_list)
 
 
     %%%%%%%%%%%%%%%%%%%%%%% ABCD matrix
-    %   Y/2 --- Z --- Y/2 cell configuration
+    %   Y/2 --- Z --- Y/2  cell configuration
 
     A = 1 + ((Z_th * Y_th) / 2);
     B = Z_th;
@@ -98,21 +98,12 @@ for num=1:length(f_th_list)
     C_N = ABCD_N(2);
     D_N = ABCD_N(4);
 
-    %%%%%%%%%%%%%%%%%%%%%%% Bloch constant (Bongard, 2010)
-    gamma_bloch = (acosh(A)) / d;
-    Z_bloch     = sqrt(B/C);
+    %%%%%%%%%%%%%%%%%%%%%%% Bloch constant 
+    
+    gamma_bloch = (acosh(A)) / d;          %Equation 1 from supplementary 1
+    Z_bloch     = sqrt(B/C);               %Equation 2 from supplementary 1
     gamma_bloch_list(num)=gamma_bloch;
     Z_bloch_list(num)=Z_bloch;
-
-
-    %%%%%%%%%%%%%%%%%%%%%%% Scattering parameters
-    Zc     = sqrt(mass_wg/(c_shunt + c_wg));     % impedance
-
-    S_11   = (A_N + (B_N/Zc) - (C_N*Zc) - D_N ) / (A_N + (B_N/Zc) + (C_N*Zc) + D_N );
-    S_21   = 2 / (A_N + (B_N/Zc) + (C_N*Zc) + D_N );
-
-    S_11_list(num)=S_11;
-    S_21_list(num)=S_21;
 
   end
 end
@@ -120,43 +111,23 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%% Offset freq
 
-aRef = f_zero;                 % Reference to set the phase origin whether its zero or the closest value
-aDiff = abs(f_th_list - aRef); % Calculate the difference
-[minVal, offset] = min(aDiff); % Find closest value to aRef
+aRef = f_zero;                        % Reference to set the phase origin corresponding to the transition frequency f_zero within f_th_list
+aDiff = abs(f_th_list - aRef);        % Calculate the difference
+[minVal, offset] = min(aDiff);        % Find closest value to aRef
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Alpha - attenuator factor
 alpha_list = real(gamma_bloch_list);
 
 %%%%%%%%%%%%%%%%%%%%%%% Beta - bloch constant through ABCD matrix
-beta_list        = imag(gamma_bloch_list);
-beta_LH          = -(beta_list(1:offset));
-beta_RH          = beta_list(offset+1:end);
-beta_ABCD_CRLH   = [beta_LH, beta_RH];
+beta_list        = imag(gamma_bloch_list);   
+beta_LH          = -(beta_list(1:offset));    % LH phase factor    
+beta_RH          = beta_list(offset+1:end);   % RH phase factor
+beta_ABCD_CRLH   = [beta_LH, beta_RH];        % full CRLH phase factor  
 
 for i=1:length(beta_list)
   beta_d_ABCD(i) = d*beta_ABCD_CRLH(i);
 end
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%
-for ps21=1:length(S_21_list)
-  phi_S21_list(ps21)=angle(S_21_list(ps21));
-end
-
-%%%%%%%%%%%%%%%%%%%%%%% Unwrap
-
-phi_S21_lh_list = flip(phi_S21_list(1:offset));
-
-phi_S21_lh=unwrap(phi_S21_lh_list);
-phi_S21_lh=flip(phi_S21_lh);
-phi_S21_rh=unwrap(phi_S21_list(offset:end));
-
-
-%%%%%%%%%%%%%%%%%%%%%%% Beta through scattering parameters
-phi_S21_LH = -phi_S21_lh/L;
-phi_S21_RH = -phi_S21_rh/L;
 
 %%%%%%%%%%%%%%%%%%%%%%% Wavenumber k = omega/c
 for num=1:length(f_th_list)
@@ -182,14 +153,16 @@ fl_y = [-4 4];
 fr_x = [fcR fcR];
 fr_y = [-4 4];
 
-f1_list = abs(phi_S21_LH-k_L) < 1;
-f1_idx = find (f1_list);
+f1_list      = abs(beta_LH-k_L) < 1;
+f1_idx_list  = find (f1_list);
+f1_idx       = int16(mean(f1_idx_list))
 
-f2_list = abs(phi_S21_RH(2:end)-k_R) < 1;
-f2_idx = find (f2_list);
+f2_list      = abs(beta_RH-k_R) < 1;
+f2_idx_list  = find (f2_list);
+f2_idx       = int16(mean(f2_idx_list))
 
-f1   = f_th_list(f1_idx(1));
-f2   = f_th_list(offset + f2_idx(1));
+f1   = f_th_list(f1_idx);
+f2   = f_th_list(offset + f2_idx);
 
 f1_x = [f1 f1];
 f1_y = [-4 4];
@@ -200,11 +173,10 @@ f2_y = [-4 4];
 f_zero_x = [f_zero f_zero];
 f_zero_y = [-4 4];
 
-%%test
+
+%%%%%%%%%%%%%%%%%%%%%%% Dispersion diagram
 
 figure
-%plot(f_th_list, beta_d_ABCD, 'color','blue', 'linewidth', 2, ';CRLH;')
-%%%%AQUI
 plot(f_th_list, beta_d_ABCD, 'color','blue', 'linewidth', 2)
 xlabel ('Frequency [Hz]');
 ylabel ('\beta * d [rad]');
@@ -214,29 +186,22 @@ legend('location', 'eastoutside');
 set( legend, 'fontsize', 13 );
 hold on
 title ('Dispersion diagram');
-%%plot(f_th_list, k_d_list, 'color','k', 'linewidth', 0.5, ';k*d;');
-%%%octave
 
 plot(f_th_list, k_d_list, 'color','k', 'linewidth', 0.5);
 plot(f_th_list, -k_d_list, 'color','k', 'linewidth', 0.5);
 
-%plot(fl_x, fl_y, 'color','k', '--', 'linewidth', 0.1)
 plot(fl_x, fl_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
 text(fcL + 25, 2.5, 'f_{cL}', 'fontsize', 15)
 
-%plot(fr_x, fr_y, 'color','k', '--', 'linewidth', 0.1)
 plot(fr_x, fr_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
 text(fcR + 25, 2.5, 'f_{cR}', 'fontsize', 15)
 
-%plot(f1_x, f1_y, 'color','k', '--', 'linewidth', 0.1)
 plot(f1_x, f1_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
 text(f1 + 25, 2.5, 'f_1', 'fontsize', 15)
 
-%plot(f2_x, f2_y, 'color','k', '--', 'linewidth', 0.1)
 plot(f2_x, f2_y, 'color','k', 'Marker','.', 'linewidth', 0.1)
 text(f2 + 25, 2.5, 'f_2', 'fontsize', 15)
 
-%plot(f_zero_x, f_zero_y, 'color','k', '--', 'linewidth', 0.1)
 plot(f_zero_x, f_zero_y, 'color','k','Marker','.', 'linewidth', 0.1)
 text(f_zero + 25, 2.5, 'f_0', 'fontsize', 15)
 set( gca, 'fontsize', 13 );
@@ -244,7 +209,7 @@ legend('CRLH', '\pm k*d')
 
 hold off
 
-%%%%%%%%%%%%%%%%%%%%%% Theta
+%%%%%%%%%%%%%%%%%%%%%% Angular response
 
 k_full     = [-k_list(1:offset), k_list(offset + 1:end)];
 for it=1:length(k_full)
@@ -253,7 +218,6 @@ end
 
 
 figure
-%plot(f_th_list(1:offset), -theta_list(1:offset), 'color','red', 'linewidth', 3, ';\theta CRLH;');
 plot(f_th_list(1:offset), -theta_list(1:offset), 'color','red', 'linewidth', 3);
 hold on
 xlabel ('Frequency [Hz]');
@@ -272,8 +236,6 @@ plot(3234, 0, 'x', 'MarkerSize',12);
 plot(3421, 30, 'o', 'MarkerSize',12);
 plot(3656, 60, '+', 'MarkerSize',12);
 
-%legStr = { '\theta LH', '\theta RH', 'Exp:-60ª', 'Exp:-30ª', 'Exp:0ª',  'Exp:30ª', 'Exp:60ª' };
-%legend( legStr );
 
 %%%%%%%%%%%%%%%%%%%%%%% HPBW
 
@@ -283,8 +245,6 @@ end
 
 for delta = 1:length(theta_list)
   delta_theta(delta) = [1/( ( L / lambda_list(delta) )  * cos(theta_list(delta)* pi/180))];
- % delta_theta(delta) = [1/( (  / lambda_list(delta) )  * (asin(beta_ABCD_CRLH(delta)/k_full(delta)))  )];
-
 end
 
 delta_theta_deg = (delta_theta  * 180/pi);
@@ -297,8 +257,6 @@ end
 dr_deg = (dr  * 180/pi);
 
 
-%plot(f_th_list(1:offset), -theta_list(1:offset) - hpbw(1:offset), 'color','black', ';HPBW;');
-%AQUI
 plot(f_th_list(1:offset), -theta_list(1:offset) + hpbw(1:offset), 'color','black');
 plot(f_th_list(1:offset), -theta_list(1:offset) - hpbw(1:offset), 'color','black');
 plot(f_th_list(offset:end), theta_list(offset:end) + hpbw(offset:end), 'color','black');
@@ -314,7 +272,7 @@ legend( legStr );
 legend('location', 'eastoutside');
 
 
-%%%%%%%%%%%%%%%%%%%% Print
+%%%%%%%%%%%%%%%%%%%% Print data
 
 fprintf('LH cut off frequency fcL = %d Hz\n', int16(fcL))
 fprintf('Backfire cut off frequency f1 = %d Hz\n', int16(f1))
