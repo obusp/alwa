@@ -36,8 +36,8 @@ c      = 342.4;                    % free-space sound velocity
 
 h        = 0.000067;        % membrane thickness
 E        = 3.6e9;             % membrane Young's modulus
-rho_m    = 1370;            % membrane density
-v_m      = 0.33^2;          % membrane Poisson's ratio
+rho_mem  = 1370;              % membrane density
+v_mem    = 0.33;            % membrane Poisson's ratio
 
 a      = 0.0039;          % waveguide radius
 b      = 0.0004;          % shunt width
@@ -50,21 +50,21 @@ d = 0.0124;       % unit cell length
 L = N * d;        % total ALWA length
 
 
-%%%%%%%%%%%%%%%%%%%%%%% Elements of the impedance Z_th
+%%%%%%%%%%%%%%%%%%%%%%% Elements of the impedance Z_se
 
-mass_wg = (rho/S_a) * (d-h);                                % mass of the waveguide section
-mass_mem  = 1.8830 * ((rho_m*h)/(pi * a^2));                % mass of the membrane
-c_mem     = (pi * a^6 ) / (196.51 * ( (E * h^3)/(12*(1-v_m) ) ) );       % compliance of the membrane
+M_wg = (rho/S_a) * (d-h);                                              % mass of the waveguide section
+M_mem  = 1.8830 * ((rho_mem*h)/(pi * a^2));                            % mass of the membrane
+C_mem     = (pi * a^6 ) / (196.51 * ( (E * h^3)/(12*(1-(v_mem^2)) ) ) );  % compliance of the membrane
 
 
-%%%%%%%%%%%%%%%%%%%%%%% Elements of the admittance Y_th
+%%%%%%%%%%%%%%%%%%%%%%% Elements of the admittance Y_sh
 
-c_wg       = (S_a/(rho * c^2)) * (d-h);       % compliance of the waveguide section
+C_wg       = (S_a/(rho * c^2)) * (d-h);       % compliance of the waveguide section
 
-f_zero          = 1 /(2*pi * sqrt( (mass_wg + mass_mem) * c_mem ) );   % resonance frequency of Z_th
+f_zero          = 1 /(2*pi * sqrt( (M_wg + M_mem) * C_mem ) );   % resonance frequency of Z_se
 
-mass_shunt  = (rho/(2*pi*b)) * log(1 + l/a);            % shunt mass of the shunt
-c_shunt     = ( 1 / ( 4 * pi^2 * (f_zero)^2 * mass_shunt) ) - c_wg;  % shunt compliance of the shunt
+M_shunt  = (rho/(2*pi*b)) * log(1 + l/a);            % shunt mass of the shunt
+C_shunt     = ( 1 / ( 4 * pi^2 * (f_zero)^2 * M_shunt) ) - C_wg;  % shunt compliance of the shunt
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Transfer function
@@ -75,31 +75,25 @@ for num=1:length(f_th_list)
     k     = omega/343.4;
 
 
-    %%%%%%%%%%%%%%%%%%%%%%% Series impedance Z_th
-    Z_th = 1i * ( (omega*(mass_wg + mass_mem)) - (1/(omega*c_mem)));
+    %%%%%%%%%%%%%%%%%%%%%%% Series impedance Z_se
+    Z_se = 1i * ( (omega*(M_wg + M_mem)) - (1/(omega*C_mem)));
 
-    %%%%%%%%%%%%%%%%%%%%%%% Shunt admittance Y_th
-    Y_th = 1i * ( (omega*(c_shunt + c_wg)) - (1/(omega*mass_shunt))  );
+    %%%%%%%%%%%%%%%%%%%%%%% Shunt admittance Y_sh
+    Y_sh = 1i * ( (omega*(C_shunt + C_wg)) - (1/(omega*M_shunt))  );
 
 
-    %%%%%%%%%%%%%%%%%%%%%%% ABCD matrix
+    %%%%%%%%%%%%%%%%%%%%%%% ABCD matrix  - Equation 15 from supplementary 1
     %   Y/2 --- Z --- Y/2  cell configuration
 
-    A = 1 + ((Z_th * Y_th) / 2);
-    B = Z_th;
-    C = Y_th * (1 + ((Z_th * Y_th) / 4));
-    D = 1 + ((Z_th * Y_th) / 2);
+    A = 1 + ((Z_se * Y_sh) / 2);
+    B = Z_se;
+    C = Y_sh * (1 + ((Z_se * Y_sh) / 4));
+    D = 1 + ((Z_se * Y_sh) / 2);
 
-    ABCD = [A, B; C, D];
-    ABCD_N = ABCD^N;
+            %ABCD = [A, B, C, D]
 
-    A_N = ABCD_N(1);
-    B_N = ABCD_N(3);
-    C_N = ABCD_N(2);
-    D_N = ABCD_N(4);
+    %%%%%%%%%%%%%%%%%%%%%%% Bloch parameters
 
-    %%%%%%%%%%%%%%%%%%%%%%% Bloch constant 
-    
     gamma_bloch = (acosh(A)) / d;          %Equation 1 from supplementary 1
     Z_bloch     = sqrt(B/C);               %Equation 2 from supplementary 1
     gamma_bloch_list(num)=gamma_bloch;
@@ -111,23 +105,24 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%% Offset freq
 
-aRef = f_zero;                        % Reference to set the phase origin corresponding to the transition frequency f_zero within f_th_list
+aRef = f_zero;                        % Reference to set the transition frequency f_zero within f_th_list
 aDiff = abs(f_th_list - aRef);        % Calculate the difference
 [minVal, offset] = min(aDiff);        % Find closest value to aRef
 
 
-%%%%%%%%%%%%%%%%%%%%%%% Alpha - attenuator factor
+%%%%%%%%%%%%%%%%%%%%%%% Alpha Bloch - attenuator factor
 alpha_list = real(gamma_bloch_list);
 
-%%%%%%%%%%%%%%%%%%%%%%% Beta - bloch constant through ABCD matrix
-beta_list        = imag(gamma_bloch_list);   
-beta_LH          = -(beta_list(1:offset));    % LH phase factor    
-beta_RH          = beta_list(offset+1:end);   % RH phase factor
-beta_ABCD_CRLH   = [beta_LH, beta_RH];        % full CRLH phase factor  
+%%%%%%%%%%%%%%%%%%%%%%% Beta Bloch - phase constant
+beta_list        = imag(gamma_bloch_list);
+beta_LH          = -(beta_list(1:offset));    % LH region
+beta_RH          = beta_list(offset+1:end);   % RH region
+beta_ABCD_CRLH   = [beta_LH, beta_RH];        % full CRLH
 
 for i=1:length(beta_list)
   beta_d_ABCD(i) = d*beta_ABCD_CRLH(i);
 end
+
 
 %%%%%%%%%%%%%%%%%%%%%%% Wavenumber k = omega/c
 for num=1:length(f_th_list)
@@ -141,28 +136,29 @@ k_R = k_list(offset+1:end);
 
 %%%%%%%%%%%%%%%%%%%%%%% Cutoff frequencies
 
-f_L        = 1 / (2*pi*sqrt( mass_shunt * c_mem ));                       % LH resonance frequency
-f_R        = 1 /(2*pi*sqrt( (mass_wg + mass_mem) * (c_shunt + c_wg) ));   % RH resonance frequency
+f_L  = 1 / (2*pi*sqrt( M_shunt * C_mem ));                       % LH resonance frequency
+f_R  = 1 /(2*pi*sqrt( (M_wg + M_mem) * (C_shunt + C_wg) ));      % RH resonance frequency
 
-fcL        = f_R * abs( 1 - (sqrt( 1 + ( f_L / f_R ) )) );     % LH cut off frequency
-fcR        = f_R   *  ( 1 + (sqrt( 1 + ( f_L / f_R ) )) );     % RH cut off frequency
+fcL  = f_R * abs( 1 - (sqrt( 1 + ( f_L / f_R ) )) );     % LH cut off frequency
+fcR  = f_R   *  ( 1 + (sqrt( 1 + ( f_L / f_R ) )) );     % RH cut off frequency
 
-fl_x = [fcL fcL];
+f1_list      = abs(beta_LH-k_L) < 1;      % finding f1 
+f1_idx_list  = find (f1_list);
+f1_idx       = int16(mean(f1_idx_list));
+f1           = f_th_list(f1_idx(1));
+
+f2_list      = abs(beta_RH-k_R) < 1;      % finding f2 
+f2_idx_list  = find (f2_list);
+f2_idx       = int16(mean(f2_idx_list));
+f2           = f_th_list(offset + f2_idx(1));
+
+%%%%%%%%%% vertical bars for cutoff frequencies 
+
+fl_x = [fcL fcL];    
 fl_y = [-4 4];
 
 fr_x = [fcR fcR];
 fr_y = [-4 4];
-
-f1_list      = abs(beta_LH-k_L) < 1;
-f1_idx_list  = find (f1_list);
-f1_idx       = int16(mean(f1_idx_list))
-
-f2_list      = abs(beta_RH-k_R) < 1;
-f2_idx_list  = find (f2_list);
-f2_idx       = int16(mean(f2_idx_list))
-
-f1   = f_th_list(f1_idx);
-f2   = f_th_list(offset + f2_idx);
 
 f1_x = [f1 f1];
 f1_y = [-4 4];
