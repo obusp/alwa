@@ -1,6 +1,6 @@
-# ALWA
+# ALWAs
 
-## S1.Metamaterial Acoustic Leaky Wave Antennas (ALWA) - Lumped Element Analysis
+## S1.Metamaterial Acoustic Leaky Wave Antennas (ALWAs) - Lumped Element Analysis
 
 ### Summary
 
